@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Healthcare Enterprise Multi-Fault Routing Simulation</title>
+  <style>
+    :root {
+      --bg: #f8fafc;
+      --card: #ffffff;
+      --card-border: #cbd5e1;
+      --primary: #0f172a;
+      --accent: #0284c7;
+      --accent-hover: #0369a1;
+      --text: #1e293b;
+      --muted: #64748b;
+      --success: #15803d;
+      --danger: #b91c1c;
+      --warning: #b45309;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+
+    body {
+      display: flex;
+      height: 100vh;
+      background-color: var(--bg);
+      color: var(--text);
+      overflow: hidden;
+    }
+
+    /* Sidebar Context */
+    .sidebar {
+      width: 330px;
+      min-width: 310px;
+      background-color: var(--card);
+      border-right: 1px solid var(--card-border);
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      overflow-y: auto;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      background-color: #e0f2fe;
+      color: var(--accent);
+      border: 1px solid #7dd3fc;
+    }
+
+    .sidebar h2 {
+      font-size: 1.05rem;
+      color: var(--primary);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      border-bottom: 2px solid #e2e8f0;
+      padding-bottom: 6px;
+    }
+
+    .sidebar p, .sidebar li {
+      font-size: 0.88rem;
+      line-height: 1.5;
+      color: var(--muted);
+    }
+
+    .rule-box {
+      background-color: #f1f5f9;
+      border-left: 4px solid var(--accent);
+      padding: 12px;
+      border-radius: 0 6px 6px 0;
+      font-size: 0.85rem;
+      color: #334155;
+    }
+
+    /* Workspace */
+    .main-workspace {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+    }
+
+    header {
+      background-color: var(--card);
+      padding: 16px 28px;
+      border-bottom: 1px solid var(--card-border);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    header h1 {
+      font-size: 1.25rem;
+      color: var(--primary);
+    }
+
+    .workspace-grid {
+      display: flex;
+      flex: 1;
+      position: relative;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    .topology-card {
+      position: relative;
+      width: 100%;
+      max-width: 1020px;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 12px;
+      padding: 20px;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.06);
+    }
+
+    /* Hotspot Interactive Nodes */
+    .router-hotspot {
+      position: absolute;
+      width: 90px;
+      height: 60px;
+      border-radius: 8px;
+      border: 2px dashed transparent;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      z-index: 10;
+    }
+
+    .router-hotspot:hover {
+      border-color: var(--accent);
+      background-color: rgba(2, 132, 199, 0.15);
+      transform: scale(1.05);
+    }
+
+    .router-hotspot.inspected {
+      border: 2px solid var(--success);
+      background-color: rgba(21, 128, 61, 0.12);
+    }
+
+    /* Hotspot Placement Coordinates */
+    .node-rtr-campus { top: 38.5%; left: 32.8%; }
+    .node-rtr-core   { top: 38.5%; left: 48.0%; }
+    .node-rtr-clinic { top: 38.5%; left: 63.3%; }
+
+    /* Footer Toolbar */
+    .footer-bar {
+      padding: 16px 28px;
+      background-color: var(--card);
+      border-top: 1px solid var(--card-border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 12px;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      cursor: pointer;
+      border: none;
+      transition: background 0.15s;
+    }
+
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); }
+    .btn-secondary { background: #e2e8f0; color: var(--text); }
+    .btn-secondary:hover { background: #cbd5e1; }
+
+    /* Centered Overlaid Dialog Modals */
+    .modal-backdrop {
+      display: none;
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 23, 42, 0.4);
+      backdrop-filter: blur(2px);
+      z-index: 2000; /* Higher z-index ensures pop-up sits on top of everything */
+      justify-content: center;
+      align-items: center;
+    }
+
+    .modal-box {
+      position: relative;
+      background: var(--card);
+      border: 1px solid var(--card-border);
+      border-radius: 10px;
+      width: 640px;
+      max-width: 92vw;
+      max-height: 90vh;
+      overflow-y: auto;
+      padding: 24px;
+      box-shadow: 0 20px 30px rgba(0, 0, 0, 0.2);
+    }
+
+    .modal-header {
+      font-size: 1.1rem;
+      color: var(--primary);
+      margin-bottom: 12px;
+      border-bottom: 1px solid var(--card-border);
+      padding-bottom: 8px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: move;
+    }
+
+    .tab-nav {
+      display: flex;
+      border-bottom: 1px solid var(--card-border);
+      margin-bottom: 16px;
+    }
+
+    .tab-btn {
+      padding: 8px 16px;
+      background: none;
+      border: none;
+      font-size: 0.88rem;
+      font-weight: 600;
+      color: var(--muted);
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+    }
+
+    .tab-btn.active {
+      color: var(--accent);
+      border-bottom-color: var(--accent);
+    }
+
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* CLI Terminal Output Box */
+    .cli-box {
+      background-color: #0f172a;
+      color: #38bdf8;
+      font-family: SFMono-Regular, Consolas, "Liberation Mono", Menlo, monospace;
+      font-size: 0.8rem;
+      padding: 16px;
+      border-radius: 6px;
+      height: 240px;
+      overflow-y: auto;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      border: 1px solid #334155;
+    }
+
+    /* Form Fields */
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: block;
+      font-size: 0.82rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .form-group input[type="text"], .form-group select {
+      width: 100%;
+      padding: 8px 12px;
+      border: 1px solid var(--card-border);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      outline: none;
+      background: #ffffff;
+    }
+
+    .radio-group {
+      display: flex;
+      gap: 16px;
+      font-size: 0.88rem;
+      margin-bottom: 14px;
+    }
+
+    .modal-footer {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .explanation-item {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px solid var(--card-border);
+      font-size: 0.88rem;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar Context & Instructions -->
+  <aside class="sidebar">
+    <div>
+      <span class="badge">Multi-Fault Routing Audit</span>
+      <h2 style="margin-top: 8px;">Hospital System WAN</h2>
+    </div>
+
+    <p id="scenarioText">
+      Clinical staff report reaching intermittent blackhole drops across the WAN. Inspect <strong>all three routers</strong> as one or more network segments may be missing valid static route entries.
+    </p>
+
+    <h2>Troubleshooting Standard</h2>
+    <ul>
+      <li>Every core router must have explicit static routes to reach non-local subnets.</li>
+      <li>Masks and outbound next-hop interfaces must align with backbone trunk links.</li>
+      <li>Do not install static routes on routers where routing is already intact.</li>
+    </ul>
+
+    <div class="rule-box">
+      <strong>Instructions:</strong> Click each router node to inspect CLI routing tables (`show ip route`). Evaluate each router independently and configure missing static routes.
+    </div>
+  </aside>
+
+  <!-- Main Workspace -->
+  <main class="main-workspace">
+    <header>
+      <h1>Healthcare Inter-Site Routing Verification Lab</h1>
+      <span style="font-size: 0.85rem; font-weight: 600; color: var(--muted);" id="progressTracker">Inspected: 0 / 3 Routers</span>
+    </header>
+
+    <div class="workspace-grid">
+      <div class="topology-card">
+        
+        <!-- Embedded Light Vector Topology SVG -->
+        <svg viewBox="0 0 1000 480" width="100%" height="auto">
+          <defs>
+            <linearGradient id="siteGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#ffffff"/>
+              <stop offset="100%" stop-color="#f8fafc"/>
+            </linearGradient>
+            <linearGradient id="serverGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#334155"/>
+              <stop offset="100%" stop-color="#0f172a"/>
+            </linearGradient>
+            <linearGradient id="screenGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#38bdf8"/>
+              <stop offset="100%" stop-color="#0284c7"/>
+            </linearGradient>
+            <linearGradient id="rtrGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+              <stop offset="0%" stop-color="#0284c7"/>
+              <stop offset="100%" stop-color="#0369a1"/>
+            </linearGradient>
+            <filter id="shadow" x="-5%" y="-5%" width="110%" height="110%">
+              <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.08"/>
+            </filter>
+
+            <!-- PC Graphic -->
+            <g id="pcGraphic">
+              <rect x="0" y="0" width="38" height="26" rx="3" fill="#1e293b" stroke="#475569" stroke-width="1.5"/>
+              <rect x="3" y="3" width="32" height="20" rx="1" fill="url(#screenGrad)"/>
+              <path d="M 5 20 L 15 12 L 23 17 L 31 10" fill="none" stroke="#ffffff" stroke-width="1.2" opacity="0.6"/>
+              <path d="M 15 26 L 23 26 L 24 30 L 14 30 Z" fill="#475569"/>
+              <rect x="11" y="30" width="16" height="2" rx="1" fill="#334155"/>
+            </g>
+
+            <!-- Switch Graphic -->
+            <g id="switchGraphic">
+              <rect x="0" y="0" width="55" height="20" rx="3" fill="url(#serverGrad)" stroke="#475569" stroke-width="1.5"/>
+              <g fill="#0f172a" stroke="#64748b" stroke-width="0.5">
+                <rect x="4" y="11" width="5" height="4" rx="1"/>
+                <rect x="10" y="11" width="5" height="4" rx="1"/>
+                <rect x="16" y="11" width="5" height="4" rx="1"/>
+                <rect x="22" y="11" width="5" height="4" rx="1"/>
+                <rect x="28" y="11" width="5" height="4" rx="1"/>
+              </g>
+              <circle cx="42" cy="10" r="1.2" fill="#22c55e"/>
+              <circle cx="47" cy="10" r="1.2" fill="#38bdf8"/>
+            </g>
+
+            <!-- Server Graphic -->
+            <g id="serverGraphic">
+              <rect x="0" y="0" width="50" height="58" rx="4" fill="url(#serverGrad)" stroke="#475569" stroke-width="1.5"/>
+              <rect x="4" y="5" width="42" height="13" rx="2" fill="#1e293b" stroke="#334155"/>
+              <rect x="4" y="22" width="42" height="13" rx="2" fill="#1e293b" stroke="#334155"/>
+              <rect x="4" y="39" width="42" height="13" rx="2" fill="#1e293b" stroke="#334155"/>
+              <circle cx="39" cy="11.5" r="1.2" fill="#38bdf8"/>
+              <circle cx="39" cy="28.5" r="1.2" fill="#22c55e"/>
+              <circle cx="39" cy="45.5" r="1.2" fill="#22c55e"/>
+            </g>
+          </defs>
+
+          <!-- Background Site Boundaries -->
+          <rect x="15" y="15" width="430" height="450" rx="10" fill="url(#siteGrad)" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="5,5"/>
+          <text x="35" y="42" font-size="15" font-weight="800" fill="#0f172a" letter-spacing="1">MAIN HOSPITAL CAMPUS</text>
+
+          <rect x="750" y="15" width="235" height="450" rx="10" fill="url(#siteGrad)" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="5,5"/>
+          <text x="770" y="42" font-size="15" font-weight="800" fill="#0f172a" letter-spacing="1">REMOTE CLINIC</text>
+
+          <!-- Subnet Boxes -->
+          <rect x="30" y="60" width="160" height="385" rx="6" fill="#ffffff" stroke="#cbd5e1"/>
+          <text x="40" y="80" font-size="11" font-weight="800" fill="#0284c7">10.50.10.0/24 (EHR Vault)</text>
+          
+          <rect x="210" y="60" width="215" height="115" rx="6" fill="#ffffff" stroke="#cbd5e1"/>
+          <text x="220" y="80" font-size="11" font-weight="800" fill="#0284c7">10.50.20.0/24 (ICU LAN)</text>
+
+          <rect x="440" y="300" width="290" height="145" rx="6" fill="#ffffff" stroke="#cbd5e1"/>
+          <text x="450" y="320" font-size="11" font-weight="800" fill="#0284c7">10.50.99.0/24 (PACS Imaging)</text>
+
+          <rect x="770" y="60" width="195" height="385" rx="6" fill="#ffffff" stroke="#cbd5e1"/>
+          <text x="780" y="80" font-size="11" font-weight="800" fill="#0284c7">10.80.30.0/24 (Clinic LAN)</text>
+
+          <!-- Connecting Bus Cables -->
+          <path d="M 135 155 L 175 155 L 175 220 L 220 220" fill="none" stroke="#0284c7" stroke-width="2.5" />
+          <line x1="135" y1="240" x2="175" y2="240" stroke="#0284c7" stroke-width="2.5" />
+          <path d="M 135 325 L 175 325 L 175 220" fill="none" stroke="#0284c7" stroke-width="2.5" />
+
+          <line x1="275" y1="220" x2="330" y2="220" stroke="#0284c7" stroke-width="2.5" />
+          <line x1="315" y1="140" x2="362" y2="140" stroke="#0284c7" stroke-width="2" />
+          <line x1="362" y1="140" x2="362" y2="195" stroke="#0284c7" stroke-width="2" />
+
+          <!-- Inter-Router Backbone Trunk Cables -->
+          <line x1="395" y1="220" x2="480" y2="220" stroke="#0284c7" stroke-width="3" />
+          <rect x="408" y="202" width="64" height="14" rx="3" fill="#ffffff" stroke="#cbd5e1"/>
+          <text x="440" y="212" text-anchor="middle" font-size="8" font-weight="800" fill="#475569">192.168.100.0/30</text>
+          
+          <line x1="565" y1="220" x2="635" y2="220" stroke="#0284c7" stroke-width="3" />
+          <rect x="568" y="202" width="64" height="14" rx="3" fill="#ffffff" stroke="#cbd5e1"/>
+          <text x="600" y="212" text-anchor="middle" font-size="8" font-weight="800" fill="#475569">192.168.200.0/30</text>
+
+          <line x1="680" y1="245" x2="680" y2="330" stroke="#0284c7" stroke-width="2.5" />
+          <path d="M 725 220 L 800 220 L 800 140" fill="none" stroke="#0284c7" stroke-width="2.5" />
+
+          <!-- Switch & Server Graphics -->
+          <g transform="translate(85, 125)" filter="url(#shadow)">
+            <use href="#serverGraphic"/>
+            <text x="25" y="70" text-anchor="middle" font-size="9" font-weight="700" fill="#0f172a">EHR Server 01</text>
+          </g>
+          <g transform="translate(85, 210)" filter="url(#shadow)">
+            <use href="#serverGraphic"/>
+            <text x="25" y="70" text-anchor="middle" font-size="9" font-weight="700" fill="#0f172a">HIPAA Auth</text>
+          </g>
+          <g transform="translate(85, 295)" filter="url(#shadow)">
+            <use href="#serverGraphic"/>
+            <text x="25" y="70" text-anchor="middle" font-size="9" font-weight="700" fill="#0f172a">EHR Server 02</text>
+          </g>
+
+          <g transform="translate(220, 210)" filter="url(#shadow)">
+            <use href="#switchGraphic"/>
+            <text x="27" y="32" text-anchor="middle" font-size="9" font-weight="700" fill="#64748b">Switch H-2</text>
+          </g>
+          <g transform="translate(260, 130)" filter="url(#shadow)">
+            <use href="#switchGraphic"/>
+            <text x="27" y="32" text-anchor="middle" font-size="9" font-weight="700" fill="#64748b">Switch H-1</text>
+          </g>
+
+          <g transform="translate(230, 95)">
+            <use href="#pcGraphic"/>
+            <text x="19" y="42" text-anchor="middle" font-size="9" font-weight="700" fill="#475569">ICU PC 01</text>
+          </g>
+          <g transform="translate(340, 95)">
+            <use href="#pcGraphic"/>
+            <text x="19" y="42" text-anchor="middle" font-size="9" font-weight="700" fill="#475569">ICU PC 02</text>
+          </g>
+
+          <!-- Router A (RTR-CAMPUS) -->
+          <g transform="translate(330, 195)" filter="url(#shadow)">
+            <rect width="65" height="50" rx="25" fill="url(#rtrGrad)" stroke="#0284c7" stroke-width="2"/>
+            <circle cx="18" cy="25" r="3.5" fill="#ffffff"/>
+            <circle cx="28" cy="25" r="3.5" fill="#ffffff"/>
+            <circle cx="38" cy="25" r="3.5" fill="#ffffff"/>
+            <circle cx="48" cy="25" r="3.5" fill="#ffffff"/>
+            <text x="32" y="-6" text-anchor="middle" font-size="11" font-weight="800" fill="#0f172a">RTR-CAMPUS</text>
+
+            <rect x="-18" y="16" width="16" height="12" rx="3" fill="#0f172a"/>
+            <text x="-10" y="25" text-anchor="middle" font-size="8" font-weight="800" fill="#38bdf8">Gi2</text>
+
+            <rect x="24" y="54" width="16" height="12" rx="3" fill="#0f172a"/>
+            <text x="32" y="63" text-anchor="middle" font-size="8" font-weight="800" fill="#38bdf8">Gi1</text>
+
+            <rect x="67" y="16" width="16" height="12" rx="3" fill="#0f172a"/>
+            <text x="75" y="25" text-anchor="middle" font-size="8" font-weight="800" fill="#38bdf8">Gi3</text>
+          </g>
+
+          <!-- Router C (RTR-CORE-WAN) -->
+          <g transform="translate(480, 195)" filter="url(#shadow)">
+            <rect width="65" height="50" rx="25" fill="url(#rtrGrad)" stroke="#0284c7" stroke-width="2"/>
+            <circle cx="18" cy="25" r="3.5" fill="#ffffff"/>
+            <circle cx="28" cy="25" r="3.5" fill="#ffffff"/>
+            <circle cx="38" cy="25" r="3.5" fill="#ffffff"/>
+            <circle cx="48" cy="25" r="3.5" fill="#ffffff"/>
+            <text x="32" y="-6" text-anchor="middle" font-size="11" font-weight="800" fill="#0f172a">RTR-CORE-WAN</text>
+
+            <rect x="-18" y="16" width="16" height="12" rx="3" fill="#0f172a"/>
+            <text x="-10" y="25" text-anchor="middle" font-size="8" font-weight="800" fill="#38bdf8">Gi2</text>
+
+            <rect x="67" y="16" width="16" height="12" rx="3" fill="#0f172a"/>
+            <text x="75" y="25" text-anchor="middle" font-size="8" font-weight="800" fill="#38bdf8">Gi1</text>
+          </g>
+
+          <!-- Router B (RTR-CLINIC) -->
+          <g transform="translate(635, 195)" filter="url(#shadow)">
+            <rect width="65" height="50" rx="25" fill="url(#rtrGrad)" stroke="#0284c7" stroke-width="2"/>
+            <circle cx="18" cy="25" r="3.5" fill="#ffffff"/>
+            <circle cx="28" cy="25" r="3.5" fill="#ffffff"/>
+            <circle cx="38" cy="25" r="3.5" fill="#ffffff"/>
+            <circle cx="48" cy="25" r="3.5" fill="#ffffff"/>
+            <text x="32" y="-6" text-anchor="middle" font-size="11" font-weight="800" fill="#0f172a">RTR-CLINIC</text>
+
+            <rect x="-18" y="16" width="16" height="12" rx="3" fill="#0f172a"/>
+            <text x="-10" y="25" text-anchor="middle" font-size="8" font-weight="800" fill="#38bdf8">Gi1</text>
+
+            <rect x="24" y="54" width="16" height="12" rx="3" fill="#0f172a"/>
+            <text x="32" y="63" text-anchor="middle" font-size="8" font-weight="800" fill="#38bdf8">Gi3</text>
+
+            <rect x="67" y="16" width="16" height="12" rx="3" fill="#0f172a"/>
+            <text x="75" y="25" text-anchor="middle" font-size="8" font-weight="800" fill="#38bdf8">Gi2</text>
+          </g>
+
+          <!-- PACS Subnet Servers -->
+          <g transform="translate(470, 335)" filter="url(#shadow)">
+            <use href="#serverGraphic"/>
+            <text x="25" y="70" text-anchor="middle" font-size="9" font-weight="700" fill="#0f172a">PACS Server 1</text>
+          </g>
+          <g transform="translate(560, 335)" filter="url(#shadow)">
+            <use href="#serverGraphic"/>
+            <text x="25" y="70" text-anchor="middle" font-size="9" font-weight="700" fill="#0f172a">DICOM Vault</text>
+          </g>
+          <g transform="translate(650, 335)" filter="url(#shadow)">
+            <use href="#serverGraphic"/>
+            <text x="25" y="70" text-anchor="middle" font-size="9" font-weight="700" fill="#0f172a">PACS Server 2</text>
+          </g>
+
+          <!-- Clinic Switch & Workstations -->
+          <g transform="translate(772, 120)" filter="url(#shadow)">
+            <use href="#switchGraphic"/>
+            <text x="27" y="32" text-anchor="middle" font-size="9" font-weight="700" fill="#64748b">Switch C-1</text>
+          </g>
+
+          <g transform="translate(860, 110)">
+            <use href="#pcGraphic"/>
+            <text x="19" y="42" text-anchor="middle" font-size="9" font-weight="700" fill="#475569">Clinic Term 01</text>
+          </g>
+          <g transform="translate(860, 200)">
+            <use href="#pcGraphic"/>
+            <text x="19" y="42" text-anchor="middle" font-size="9" font-weight="700" fill="#475569">Clinic Term 02</text>
+          </g>
+        </svg>
+
+        <!-- Hotspot Overlay Click Targets -->
+        <div class="router-hotspot node-rtr-campus" onclick="openRouterModal('CAMPUS')" title="Inspect RTR-CAMPUS CLI"></div>
+        <div class="router-hotspot node-rtr-core" onclick="openRouterModal('CORE')" title="Inspect RTR-CORE-WAN CLI"></div>
+        <div class="router-hotspot node-rtr-clinic" onclick="openRouterModal('CLINIC')" title="Inspect RTR-CLINIC CLI"></div>
+
+      </div>
+    </div>
+
+    <!-- Action Bar Footer -->
+    <div class="footer-bar">
+      <button class="btn btn-secondary" onclick="resetSimulation()">Reset All</button>
+      <button class="btn btn-primary" onclick="submitAssessment()">Check Score</button>
+    </div>
+  </main>
+
+  <!-- MODAL: Router Inspector -->
+  <div class="modal-backdrop" id="routerModal">
+    <div class="modal-box">
+      <div class="modal-header" id="modalDragHeader">
+        <span id="routerModalTitle">Router Info - RTR-CAMPUS</span>
+        <button class="btn-secondary" style="padding: 2px 8px;" onclick="closeModal('routerModal')">✕</button>
+      </div>
+
+      <div class="tab-nav">
+        <button class="tab-btn active" onclick="switchModalTab('table')">Routing Table</button>
+        <button class="tab-btn" onclick="switchModalTab('config')">Routing Configuration</button>
+      </div>
+
+      <div class="tab-panel active" id="panelTable">
+        <div class="cli-box" id="cliOutput">
+          <!-- Dynamically Populated CLI Text -->
+        </div>
+      </div>
+
+      <div class="tab-panel" id="panelConfig">
+        <form onsubmit="event.preventDefault(); saveRouterForm();">
+          <div class="form-group">
+            <label>Was a problem found on this router?</label>
+            <div class="radio-group">
+              <label><input type="radio" name="problemFound" value="no" checked onclick="toggleConfigForm(false)"> No (Routing intact)</label>
+              <label><input type="radio" name="problemFound" value="yes" onclick="toggleConfigForm(true)"> Yes (Missing route)</label>
+            </div>
+          </div>
+
+          <div id="staticFormFields" style="opacity: 0.5; pointer-events: none;">
+            <div class="form-group">
+              <label for="destPrefix">Destination Prefix (Subnet ID):</label>
+              <input type="text" id="destPrefix" placeholder="e.g. 10.50.10.0" />
+            </div>
+
+            <div class="form-group">
+              <label for="destMask">Destination Prefix Mask:</label>
+              <input type="text" id="destMask" placeholder="e.g. 255.255.255.0" />
+            </div>
+
+            <div class="form-group">
+              <label for="outInterface">Outbound Next-Hop Interface:</label>
+              <select id="outInterface">
+                <!-- Dynamically populated and shuffled -->
+              </select>
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" type="button" onclick="resetCurrentRouter()">Reset Router</button>
+            <button class="btn btn-primary" type="submit">Save Static Route</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: Results -->
+  <div class="modal-backdrop" id="resultsModal">
+    <div class="modal-box" style="width: 580px;">
+      <h3>Audit Score Summary</h3>
+      <div id="scoreHeader" style="font-size: 1.15rem; font-weight: 700; margin-bottom: 12px;"></div>
+      <div id="evaluationLog"></div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="closeModal('resultsModal')">Close Analysis</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const interfaceOptions = [
+      { val: "GigabitEthernet1", label: "GigabitEthernet1 (Gi1)" },
+      { val: "GigabitEthernet2", label: "GigabitEthernet2 (Gi2)" },
+      { val: "GigabitEthernet3", label: "GigabitEthernet3 (Gi3)" }
+    ];
+
+    const cliHeader = `Codes: L - local, C - connected, S - static, R - RIP, M - mobile, B - BGP
+       D - EIGRP, EX - EIGRP external, O - OSPF, IA - OSPF interarea
+       E1 - OSPF external type 1, E2 - OSPF external type 2\n\n`;
+
+    // Multi-fault tracking object for active session
+    let activeFaults = { CAMPUS: false, CORE: false, CLINIC: false };
+    let activeRouterKey = "CAMPUS";
+    let inspectedRouters = new Set();
+
+    let userRouterForms = {
+      CAMPUS: { problemFound: "no", dest: "", mask: "", interface: "" },
+      CORE:   { problemFound: "no", dest: "", mask: "", interface: "" },
+      CLINIC: { problemFound: "no", dest: "", mask: "", interface: "" }
+    };
+
+    let userStaticRoutes = { CAMPUS: [], CORE: [], CLINIC: [] };
+
+    // Required ground-truth configurations for each router if faulty
+    const targetRoutes = {
+      CAMPUS: { dest: "10.80.30.0", mask: "255.255.255.0", iface: "GigabitEthernet3" },
+      CORE:   { dest: "10.50.10.0", mask: "255.255.255.0", iface: "GigabitEthernet2" },
+      CLINIC: { dest: "10.50.10.0", mask: "255.255.255.0", iface: "GigabitEthernet1" }
+    };
+
+    // Multi-Fault Generator: Can assign 1, 2, or 3 faults simultaneously on launch/reset
+    function generateDynamicFaults() {
+      const routers = ["CAMPUS", "CORE", "CLINIC"];
+      activeFaults = { CAMPUS: false, CORE: false, CLINIC: false };
+
+      // Randomly pick how many faults (1, 2, or 3)
+      const faultCount = Math.floor(Math.random() * 3) + 1;
+      const shuffledRouters = shuffle(routers);
+
+      for (let i = 0; i < faultCount; i++) {
+        activeFaults[shuffledRouters[i]] = true;
+      }
+
+      // Format scenario description text
+      let faultyNames = Object.keys(activeFaults).filter(k => activeFaults[k]).map(k => `RTR-${k}`);
+      document.getElementById('scenarioText').innerHTML = 
+        `Network Operations reports traffic drops across WAN segments. Audit findings indicate that <strong>${faultyNames.length} router(s) (${faultyNames.join(', ')})</strong> may be missing valid static routes. Inspect all routers to restore connectivity.`;
+
+      inspectedRouters.clear();
+      userRouterForms = {
+        CAMPUS: { problemFound: "no", dest: "", mask: "", interface: "" },
+        CORE:   { problemFound: "no", dest: "", mask: "", interface: "" },
+        CLINIC: { problemFound: "no", dest: "", mask: "", interface: "" }
+      };
+      userStaticRoutes = { CAMPUS: [], CORE: [], CLINIC: [] };
+      updateTracker();
+    }
+
+    function getRouterCliTable(routerKey) {
+      let output = `RTR-${routerKey}# show ip route\n\n` + cliHeader;
+      const isFaulty = activeFaults[routerKey];
+
+      if (routerKey === "CAMPUS") {
+        output += `Gateway of last resort is 0.0.0.0 to network 0.0.0.0\n\n` +
+                  `S*    0.0.0.0/0 is directly connected, GigabitEthernet1\n` +
+                  `      10.0.0.0/8 is variably subnetted, 4 subnets, 2 masks\n` +
+                  `C        10.50.10.0/24 is directly connected, GigabitEthernet1\n` +
+                  `C        10.50.20.0/24 is directly connected, GigabitEthernet2\n` +
+                  `L        10.50.20.1/32 is directly connected, GigabitEthernet2\n`;
+
+        if (!isFaulty) {
+          output += `S        10.80.30.0/24 [1/0] via GigabitEthernet3\n`;
+        }
+
+        output += `      192.168.100.0/24 is variably subnetted, 2 subnets, 2 masks\n` +
+                  `C        192.168.100.0/30 is directly connected, GigabitEthernet3\n` +
+                  `L        192.168.100.1/32 is directly connected, GigabitEthernet3\n`;
+      } else if (routerKey === "CORE") {
+        output += `Gateway of last resort is not set\n\n` +
+                  `      10.0.0.0/8 is variably subnetted, 3 subnets, 2 masks\n` +
+                  `C        10.50.99.0/24 is directly connected, GigabitEthernet3\n` +
+                  `S        10.80.30.0/24 [1/0] via GigabitEthernet1\n`;
+
+        if (!isFaulty) {
+          output += `S        10.50.10.0/24 [1/0] via GigabitEthernet2\n`;
+        }
+
+        output += `      192.168.0.0/16 is variably subnetted, 4 subnets, 2 masks\n` +
+                  `C        192.168.100.0/30 is directly connected, GigabitEthernet2\n` +
+                  `L        192.168.100.2/32 is directly connected, GigabitEthernet2\n` +
+                  `C        192.168.200.0/30 is directly connected, GigabitEthernet1\n` +
+                  `L        192.168.200.1/32 is directly connected, GigabitEthernet1\n`;
+      } else if (routerKey === "CLINIC") {
+        output += `Gateway of last resort is not set\n\n` +
+                  `      10.0.0.0/8 is variably subnetted, 2 subnets, 2 masks\n` +
+                  `C        10.80.30.0/24 is directly connected, GigabitEthernet2\n` +
+                  `L        10.80.30.1/32 is directly connected, GigabitEthernet2\n`;
+
+        if (!isFaulty) {
+          output += `S        10.50.10.0/24 [1/0] via GigabitEthernet1\n`;
+        }
+
+        output += `      192.168.200.0/24 is variably subnetted, 2 subnets, 2 masks\n` +
+                  `C        192.168.200.0/30 is directly connected, GigabitEthernet1\n` +
+                  `L        192.168.200.2/32 is directly connected, GigabitEthernet1\n`;
+      }
+
+      if (userStaticRoutes[routerKey].length > 0) {
+        output += `\n-- Active Static Route Override --\n`;
+        userStaticRoutes[routerKey].forEach(r => {
+          output += `S        ${r.dest}/${r.mask} is directly connected, ${r.iface}\n`;
+        });
+      }
+
+      return output;
+    }
+
+    function shuffle(array) {
+      let arr = [...array];
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+      return arr;
+    }
+
+    function openRouterModal(routerKey) {
+      activeRouterKey = routerKey;
+      inspectedRouters.add(routerKey);
+
+      const hotspot = document.querySelector(`.node-rtr-${routerKey.toLowerCase()}`);
+      if (hotspot) hotspot.classList.add('inspected');
+
+      updateTracker();
+
+      document.getElementById('routerModalTitle').textContent = `Router Info - RTR-${routerKey}`;
+      document.getElementById('cliOutput').textContent = getRouterCliTable(routerKey);
+
+      const ifaceSelect = document.getElementById('outInterface');
+      ifaceSelect.innerHTML = '<option value="">-- Select Outbound Interface --</option>';
+      shuffle(interfaceOptions).forEach(opt => {
+        const option = document.createElement('option');
+        option.value = opt.val;
+        option.textContent = opt.label;
+        ifaceSelect.appendChild(option);
+      });
+
+      const saved = userRouterForms[routerKey];
+      document.querySelectorAll('input[name="problemFound"]').forEach(r => {
+        r.checked = (r.value === saved.problemFound);
+      });
+
+      document.getElementById('destPrefix').value = saved.dest;
+      document.getElementById('destMask').value = saved.mask;
+      ifaceSelect.value = saved.interface;
+
+      toggleConfigForm(saved.problemFound === 'yes');
+      switchModalTab('table');
+      openModal('routerModal');
+    }
+
+    function toggleConfigForm(enabled) {
+      const formFields = document.getElementById('staticFormFields');
+      if (enabled) {
+        formFields.style.opacity = '1';
+        formFields.style.pointerEvents = 'auto';
+      } else {
+        formFields.style.opacity = '0.5';
+        formFields.style.pointerEvents = 'none';
+      }
+    }
+
+    function switchModalTab(tabKey) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+      document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+
+      if (tabKey === 'table') {
+        document.querySelectorAll('.tab-btn')[0].classList.add('active');
+        document.getElementById('panelTable').classList.add('active');
+      } else {
+        document.querySelectorAll('.tab-btn')[1].classList.add('active');
+        document.getElementById('panelConfig').classList.add('active');
+      }
+    }
+
+    function saveRouterForm() {
+      const problemFound = document.querySelector('input[name="problemFound"]:checked').value;
+      const dest = document.getElementById('destPrefix').value.trim();
+      const mask = document.getElementById('destMask').value.trim();
+      const iface = document.getElementById('outInterface').value;
+
+      if (problemFound === 'yes') {
+        if (!dest || !mask || !iface) {
+          alert('Please specify Destination Prefix, Subnet Mask, and Outbound Interface.');
+          return;
+        }
+        userStaticRoutes[activeRouterKey].push({ dest, mask, iface });
+      }
+
+      userRouterForms[activeRouterKey] = { problemFound, dest, mask, interface: iface };
+      document.getElementById('cliOutput').textContent = getRouterCliTable(activeRouterKey);
+      switchModalTab('table');
+    }
+
+    function resetCurrentRouter() {
+      userStaticRoutes[activeRouterKey] = [];
+      userRouterForms[activeRouterKey] = { problemFound: 'no', dest: '', mask: '', interface: '' };
+      
+      document.querySelectorAll('input[name="problemFound"]').forEach(r => r.checked = (r.value === 'no'));
+      document.getElementById('destPrefix').value = '';
+      document.getElementById('destMask').value = '';
+      document.getElementById('outInterface').value = '';
+      
+      toggleConfigForm(false);
+      document.getElementById('cliOutput').textContent = getRouterCliTable(activeRouterKey);
+      switchModalTab('table');
+    }
+
+    function updateTracker() {
+      document.getElementById('progressTracker').textContent = `Inspected: ${inspectedRouters.size} / 3 Routers`;
+    }
+
+    function openModal(id) { 
+      const modal = document.getElementById(id);
+      modal.style.display = 'flex';
+      // Reset position to center whenever opened
+      const box = modal.querySelector('.modal-box');
+      box.style.position = 'relative';
+      box.style.left = '0px';
+      box.style.top = '0px';
+    }
+
+    function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+
+    function resetSimulation() {
+      generateDynamicFaults();
+      document.querySelectorAll('.router-hotspot').forEach(el => el.classList.remove('inspected'));
+      closeModal('resultsModal');
+      closeModal('routerModal');
+    }
+
+    function submitAssessment() {
+      let score = 0;
+      const totalPoints = 3;
+      let logs = [];
+
+      ['CAMPUS', 'CORE', 'CLINIC'].forEach(rKey => {
+        const user = userRouterForms[rKey];
+        const isFaulty = activeFaults[rKey];
+        const target = targetRoutes[rKey];
+
+        if (isFaulty) {
+          if (user.problemFound === 'yes' && 
+              user.dest === target.dest && 
+              (user.mask === target.mask || user.mask === '255.255.255.0') && 
+              user.interface === target.iface) {
+            score++;
+          } else {
+            logs.push(`<div class="explanation-item"><strong>Router RTR-${rKey} Fault Incorrect:</strong> Missing required static route to target subnet <code>${target.dest}/24</code> via <code>${target.iface}</code>.</div>`);
+          }
+        } else {
+          if (user.problemFound === 'no') {
+            score++;
+          } else {
+            logs.push(`<div class="explanation-item"><strong>Router RTR-${rKey} Incorrect:</strong> This router already maintains valid routing entries. No fault configuration was required.</div>`);
+          }
+        }
+      });
+
+      const scoreHeader = document.getElementById('scoreHeader');
+      const evalLog = document.getElementById('evaluationLog');
+
+      scoreHeader.textContent = `Total Score: ${score} / ${totalPoints}`;
+      scoreHeader.style.color = score === totalPoints ? 'var(--success)' : 'var(--danger)';
+
+      if (score === totalPoints) {
+        evalLog.innerHTML = `<p style="color:var(--success); font-weight:bold;">Outstanding Audit Results! You correctly identified all missing route entries across the network and restored multi-site reachability.</p>`;
+      } else {
+        evalLog.innerHTML = logs.join('');
+      }
+
+      openModal('resultsModal');
+    }
+
+    // Drag Modal Handler
+    let isDragging = false, startX, startY, initialLeft, initialTop;
+    const dragHeader = document.getElementById('modalDragHeader');
+    const modalBox = document.querySelector('#routerModal .modal-box');
+
+    dragHeader.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startX = e.clientX;
+      startY = e.clientY;
+      const rect = modalBox.getBoundingClientRect();
+      initialLeft = rect.left;
+      initialTop = rect.top;
+      document.addEventListener('mousemove', onDrag);
+      document.addEventListener('mouseup', onStopDrag);
+    });
+
+    function onDrag(e) {
+      if (!isDragging) return;
+      const dx = e.clientX - startX;
+      const dy = e.clientY - startY;
+      modalBox.style.position = 'absolute';
+      modalBox.style.left = `${initialLeft + dx}px`;
+      modalBox.style.top = `${initialTop + dy}px`;
+      modalBox.style.transform = 'none';
+    }
+
+    function onStopDrag() {
+      isDragging = false;
+      document.removeEventListener('mousemove', onDrag);
+      document.removeEventListener('mouseup', onStopDrag);
+    }
+
+    window.onload = function() {
+      generateDynamicFaults();
+    };
+  </script>
+</body>
+</html>
